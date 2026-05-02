@@ -1,8 +1,10 @@
 import { Bell, Plus, Settings, LogOut, User, ChevronDown, Search } from 'lucide-react';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { useUiStore } from '@/stores/uiStore';
 import { useTenantStore } from '@/stores/tenantStore';
+import { useAuthStore } from '@/stores/authStore';
 import { mockNotifications } from '@/data/mock';
 import { NotificationDrawer } from './NotificationDrawer';
 
@@ -10,6 +12,10 @@ const AVATAR_INITIALS = 'RV';
 
 export function Topbar() {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const logout = useAuthStore((state) => state.logout);
+    const authUser = useAuthStore((state) => state.user);
+    const authTenant = useAuthStore((state) => state.tenant);
     const { setCommandBarOpen } = useUiStore();
     const { currentTenantId, tenants, switchTenant } = useTenantStore();
     const [showStoreMenu, setShowStoreMenu] = useState(false);
@@ -17,6 +23,21 @@ export function Topbar() {
     const [showNotifs, setShowNotifs] = useState(false);
     const currentTenant = tenants.find(t => t.id === currentTenantId);
     const unreadCount = mockNotifications.filter(n => !n.isRead).length;
+    const userDisplayName = authUser ? `${authUser.firstName} ${authUser.lastName}`.trim() : 'User';
+    const tenantDisplayName = currentTenant?.branchName || authTenant?.name || 'Current Tenant';
+
+    const openRoute = (path: string) => {
+        setShowUserMenu(false);
+        setShowStoreMenu(false);
+        navigate(path);
+    };
+
+    const handleSignOut = () => {
+        logout();
+        setShowUserMenu(false);
+        setShowStoreMenu(false);
+        navigate('/login', { replace: true });
+    };
 
     return (
         <>
@@ -29,7 +50,7 @@ export function Topbar() {
                 background: '#0d1424',
                 borderBottom: '1px solid #1a2640',
                 flexShrink: 0,
-                zIndex: 40,
+                zIndex: 120,
                 position: 'relative',
             }}>
                 {/* Store Switcher */}
@@ -113,22 +134,23 @@ export function Topbar() {
                 {/* Action Row */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {/* New Sale */}
-                    <a
-                        href="/pos"
+                    <button
+                        type="button"
+                        onClick={() => navigate('/pos')}
                         style={{
                             display: 'flex', alignItems: 'center', gap: 6,
                             background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                            borderRadius: 7, padding: '6px 12px', textDecoration: 'none',
+                            borderRadius: 7, padding: '6px 12px', border: 'none',
                             fontSize: 13, fontWeight: 600, color: 'white',
                             fontFamily: 'IBM Plex Sans, sans-serif',
                             boxShadow: '0 4px 14px rgba(59,130,246,0.3)',
-                            transition: 'all 0.15s',
+                            transition: 'all 0.15s', cursor: 'pointer',
                         }}
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 20px rgba(59,130,246,0.4)'; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 14px rgba(59,130,246,0.3)'; }}
                     >
                         <Plus size={14} /> New Sale
-                    </a>
+                    </button>
 
                     {/* Notifications */}
                     <button
@@ -178,16 +200,17 @@ export function Topbar() {
                                 boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
                             }}>
                                 <div style={{ padding: '8px 10px 10px', borderBottom: '1px solid #1a2640', marginBottom: 6 }}>
-                                    <p style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9', fontFamily: 'DM Sans, sans-serif' }}>Ramesh Verma</p>
-                                    <p style={{ fontSize: 11, color: '#4b6080' }}>Owner · Pune Main</p>
+                                    <p style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9', fontFamily: 'DM Sans, sans-serif' }}>{userDisplayName}</p>
+                                    <p style={{ fontSize: 11, color: '#4b6080' }}>{(authUser?.role || 'User')} · {tenantDisplayName}</p>
                                 </div>
                                 {[
-                                    { Icon: User, label: 'Profile', href: '/settings' },
-                                    { Icon: Settings, label: 'Settings', href: '/settings' },
-                                ].map(({ Icon, label, href }) => (
-                                    <a key={label} href={href} onClick={() => setShowUserMenu(false)} style={{
+                                    { Icon: User, label: 'Profile', path: '/settings?tab=profile' },
+                                    { Icon: Settings, label: 'Settings', path: '/settings?tab=display' },
+                                ].map(({ Icon, label, path }) => (
+                                    <button key={label} type="button" onClick={() => openRoute(path)} style={{
+                                        width: '100%', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer',
                                         display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
-                                        borderRadius: 7, textDecoration: 'none', color: '#64748b',
+                                        borderRadius: 7, color: '#64748b',
                                         fontSize: 13, fontFamily: 'IBM Plex Sans, sans-serif',
                                         transition: 'all 0.12s',
                                     }}
@@ -195,10 +218,13 @@ export function Topbar() {
                                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#64748b'; }}
                                     >
                                         <Icon size={14} /> {label}
-                                    </a>
+                                    </button>
                                 ))}
                                 <div style={{ borderTop: '1px solid #1a2640', marginTop: 4, paddingTop: 4 }}>
-                                    <button style={{
+                                    <button
+                                        type="button"
+                                        onClick={handleSignOut}
+                                        style={{
                                         width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                                         padding: '8px 10px', borderRadius: 7, border: 'none', background: 'transparent',
                                         color: '#ef4444', fontSize: 13, cursor: 'pointer', fontFamily: 'IBM Plex Sans, sans-serif',
@@ -218,7 +244,7 @@ export function Topbar() {
 
             {/* Click-outside dismissal */}
             {(showStoreMenu || showUserMenu) && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={() => { setShowStoreMenu(false); setShowUserMenu(false); }} />
+                <div style={{ position: 'fixed', inset: 0, zIndex: 80 }} onClick={() => { setShowStoreMenu(false); setShowUserMenu(false); }} />
             )}
 
             <NotificationDrawer open={showNotifs} onClose={() => setShowNotifs(false)} />

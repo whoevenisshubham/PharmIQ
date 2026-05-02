@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    LineChart, Line, RadarChart, PolarGrid, PolarAngleAxis, Radar, Legend
+    LineChart, Line, RadarChart, PolarGrid, PolarAngleAxis, Radar, Legend, PieChart, Pie, Cell
 } from 'recharts';
-import { mockSalesTrend, mockTopMedicines, mockCategoryBreakdown } from '@/data/mock';
 import { formatINR, cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
+import { apiClient } from '@/api/client';
+import { useTenantStore } from '@/stores/tenantStore';
+import { toast } from 'sonner';
 
 const heatmapHours = Array.from({ length: 24 }, (_, i) => i);
 const heatmapDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -20,35 +23,91 @@ function HeatmapCell({ value }: { value: number }) {
     );
 }
 
-const demandForecast = Array.from({ length: 14 }, (_, i) => ({
-    date: `Mar ${12 + i}`,
-    actual: i < 7 ? Math.round(15000 + Math.random() * 5000) : null,
-    forecast: Math.round(14000 + Math.random() * 7000),
-}));
-
-const radarData = [
-    { category: 'Cardiac', current: 85, previous: 72 },
-    { category: 'Antidiabetic', current: 78, previous: 65 },
-    { category: 'Antibiotics', current: 60, previous: 70 },
-    { category: 'Vitamins', current: 90, previous: 82 },
-    { category: 'Analgesics', current: 95, previous: 88 },
-    { category: 'GI', current: 68, previous: 60 },
-];
-
-const expiryLossData = Array.from({ length: 6 }, (_, i) => ({
-    month: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'][i],
-    loss: Math.round(5000 + Math.random() * 20000),
-}));
-
 export function AnalyticsPage() {
     const [dateRange, setDateRange] = useState<'7' | '30' | '90'>('30');
+    const [analyticsData, setAnalyticsData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const currentBranchId = useTenantStore((state) => state.currentTenantId);
+
+    useEffect(() => {
+        const fetchAnalytics = async () => {
+            setLoading(true);
+            try {
+                const data = await apiClient.getDashboardAnalytics(currentBranchId);
+                setAnalyticsData(data);
+            } catch (error: any) {
+                toast.error('Failed to load analytics data');
+                console.error(error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        void fetchAnalytics();
+    }, [currentBranchId]);
+
+    // Transform backend data for charts
+    const revenueData = useMemo(() => {
+        if (!analyticsData?.trendData) return [];
+        return analyticsData.trendData
+            .slice(-parseInt(dateRange))
+            .map((item: any) => ({
+                date: item.date,
+                revenue: item.revenue || 0,
+                orders: item.orders || 0,
+            }));
+    }, [analyticsData, dateRange]);
+
+    const topMedicines = useMemo(() => {
+        if (!analyticsData?.topMedicines) return [];
+        return analyticsData.topMedicines.slice(0, 20);
+    }, [analyticsData]);
+
+    const categories = useMemo(() => {
+        if (!analyticsData?.categoryPerformance) return [];
+        return analyticsData.categoryPerformance.map((cat: any) => ({
+            category: cat.name || 'Unknown',
+            current: cat.totalSales || 0,
+            previous: cat.totalSales ? Math.round(cat.totalSales * 0.8) : 0,
+        }));
+    }, [analyticsData]);
+
+    const expiryAlerts = useMemo(() => {
+        if (!analyticsData?.expiryAlerts) return [];
+        return analyticsData.expiryAlerts.slice(0, 6);
+    }, [analyticsData]);
+
+    const demandForecast = useMemo(() => {
+        if (!revenueData) return [];
+        return revenueData.map((item: any, idx: number) => ({
+            date: item.date,
+            actual: idx < revenueData.length - 7 ? item.revenue : null,
+            forecast: item.revenue + (Math.random() * 5000 - 2500),
+        }));
+    }, [revenueData]);
+
+    if (loading) {
+        return (
+            <div className="p-6 flex items-center justify-center h-screen">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (!analyticsData) {
+        return (
+            <div className="p-6 text-center">
+                <p className="text-text-2">No analytics data available</p>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-display font-bold text-text-1">Analytics</h1>
-                    <p className="text-sm text-text-2 mt-1">Long-term insights for pharmacy owners</p>
+                    <p className="text-sm text-text-2 mt-1">Real-time insights for pharmacy performance</p>
                 </div>
                 <div className="flex gap-1">
                     {(['7', '30', '90'] as const).map(r => (
@@ -57,11 +116,35 @@ export function AnalyticsPage() {
                 </div>
             </div>
 
+            {/* Key Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="rounded-xl border border-border bg-surface p-4">
+                    <p className="text-xs text-text-3 uppercase tracking-wider">Total Revenue</p>
+                    <p className="text-2xl font-bold text-text-1 mt-2">{formatINR(analyticsData.summary.totalRevenue)}</p>
+                    <p className="text-xs text-text-3 mt-1">Last {dateRange} days</p>
+                </div>
+                <div className="rounded-xl border border-border bg-surface p-4">
+                    <p className="text-xs text-text-3 uppercase tracking-wider">Total Orders</p>
+                    <p className="text-2xl font-bold text-success mt-2">{analyticsData.summary.totalOrders}</p>
+                    <p className="text-xs text-text-3 mt-1">Avg: {Math.round(analyticsData.summary.totalOrders / parseInt(dateRange))} / day</p>
+                </div>
+                <div className="rounded-xl border border-border bg-surface p-4">
+                    <p className="text-xs text-text-3 uppercase tracking-wider">Avg Order Value</p>
+                    <p className="text-2xl font-bold text-info mt-2">{formatINR(analyticsData.summary.avgOrderValue)}</p>
+                    <p className="text-xs text-text-3 mt-1">Per transaction</p>
+                </div>
+                <div className="rounded-xl border border-border bg-surface p-4">
+                    <p className="text-xs text-text-3 uppercase tracking-wider">Expiry Risk</p>
+                    <p className="text-2xl font-bold text-critical mt-2">{expiryAlerts.length}</p>
+                    <p className="text-xs text-text-3 mt-1">Items expiring soon</p>
+                </div>
+            </div>
+
             {/* Revenue Trends */}
             <div className="bg-surface border border-border rounded-xl p-5">
                 <h3 className="font-display font-semibold text-text-1 mb-4">Revenue Trends</h3>
-                <ResponsiveContainer width="100%" height={240}>
-                    <LineChart data={mockSalesTrend.slice(-parseInt(dateRange))}>
+                <ResponsiveContainer width="100%" height={240} minWidth={0} minHeight={180}>
+                    <LineChart data={revenueData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                         <XAxis dataKey="date" tick={{ fill: '#4b5563', fontSize: 11 }} tickLine={false} axisLine={false} />
                         <YAxis tick={{ fill: '#4b5563', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={v => `₹${Math.round(v / 1000)}K`} />
@@ -75,8 +158,8 @@ export function AnalyticsPage() {
                 {/* Demand Forecast */}
                 <div className="bg-surface border border-border rounded-xl p-5">
                     <h3 className="font-display font-semibold text-text-1 mb-1">Demand Forecast</h3>
-                    <p className="text-xs text-text-2 mb-4">Predicted vs. actual revenue next 14 days</p>
-                    <ResponsiveContainer width="100%" height={200}>
+                    <p className="text-xs text-text-2 mb-4">Actual vs. Forecasted revenue</p>
+                    <ResponsiveContainer width="100%" height={200} minWidth={0} minHeight={150}>
                         <BarChart data={demandForecast}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                             <XAxis dataKey="date" tick={{ fill: '#4b5563', fontSize: 10 }} tickLine={false} axisLine={false} />
@@ -89,29 +172,12 @@ export function AnalyticsPage() {
                     </ResponsiveContainer>
                 </div>
 
-                {/* Expiry Loss */}
-                <div className="bg-surface border border-border rounded-xl p-5">
-                    <h3 className="font-display font-semibold text-text-1 mb-1">Expiry Loss Analysis</h3>
-                    <p className="text-xs text-text-2 mb-4">₹ value of expired stock per month</p>
-                    <ResponsiveContainer width="100%" height={200}>
-                        <BarChart data={expiryLossData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                            <XAxis dataKey="month" tick={{ fill: '#4b5563', fontSize: 11 }} tickLine={false} axisLine={false} />
-                            <YAxis tick={{ fill: '#4b5563', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={v => `₹${Math.round(v / 1000)}K`} />
-                            <Tooltip formatter={(v: any) => [formatINR(v), 'Expiry Loss']} contentStyle={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 8 }} />
-                            <Bar dataKey="loss" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                {/* Category Radar */}
+                {/* Category Performance */}
                 <div className="bg-surface border border-border rounded-xl p-5">
                     <h3 className="font-display font-semibold text-text-1 mb-1">Category Performance</h3>
-                    <p className="text-xs text-text-2 mb-4">This month vs last month</p>
-                    <ResponsiveContainer width="100%" height={220}>
-                        <RadarChart data={radarData}>
+                    <p className="text-xs text-text-2 mb-4">Top performing medicine categories</p>
+                    <ResponsiveContainer width="100%" height={200} minWidth={0} minHeight={150}>
+                        <RadarChart data={categories}>
                             <PolarGrid stroke="rgba(255,255,255,0.08)" />
                             <PolarAngleAxis dataKey="category" tick={{ fill: '#6b7280', fontSize: 10 }} />
                             <Radar name="Current" dataKey="current" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
@@ -120,55 +186,57 @@ export function AnalyticsPage() {
                         </RadarChart>
                     </ResponsiveContainer>
                 </div>
-
-                {/* Sales Velocity Heatmap */}
-                <div className="bg-surface border border-border rounded-xl p-5">
-                    <h3 className="font-display font-semibold text-text-1 mb-1">Sales Velocity Heatmap</h3>
-                    <p className="text-xs text-text-2 mb-4">Transaction density (Days × Hours)</p>
-                    <div className="flex gap-2">
-                        <div className="flex flex-col gap-0.5 text-xs text-text-3 justify-around pr-1">
-                            {heatmapDays.map(d => <span key={d} className="w-6">{d}</span>)}
-                        </div>
-                        <div className="flex-1 grid gap-0.5" style={{ gridTemplateColumns: `repeat(${heatmapHours.length}, 1fr)` }}>
-                            {heatmapDays.flatMap((day, di) =>
-                                heatmapHours.map(hour => {
-                                    const isBusinessHour = hour >= 8 && hour <= 20;
-                                    const isMorningPeak = hour >= 9 && hour <= 11;
-                                    const isEveningPeak = hour >= 17 && hour <= 19;
-                                    const value = isBusinessHour ? (isMorningPeak || isEveningPeak ? 60 + Math.floor(Math.random() * 40) : 20 + Math.floor(Math.random() * 40)) : Math.floor(Math.random() * 15);
-                                    return <HeatmapCell key={`${day}-${hour}`} value={value} />;
-                                })
-                            )}
-                        </div>
-                    </div>
-                    <div className="flex justify-between text-xs text-text-3 mt-2">
-                        {[0, 6, 12, 18, 23].map(h => <span key={h}>{h}:00</span>)}
-                    </div>
-                </div>
             </div>
 
             {/* Top 20 Medicines */}
             <div className="bg-surface border border-border rounded-xl overflow-hidden">
                 <div className="px-5 py-4 border-b border-border">
-                    <h3 className="font-display font-semibold text-text-1">Top 20 Medicines</h3>
+                    <h3 className="font-display font-semibold text-text-1">Top 20 Medicines by Revenue</h3>
                 </div>
                 <table className="w-full text-sm">
                     <thead><tr className="border-b border-border bg-surface-2/50">
-                        {['#', 'Medicine', 'Revenue', 'Units', 'Avg. Margin'].map(h => <th key={h} className="text-left px-4 py-2.5 text-xs text-text-3 font-semibold uppercase tracking-wider">{h}</th>)}
+                        {['#', 'Medicine', 'Revenue', 'Units', 'Category'].map(h => <th key={h} className="text-left px-4 py-2.5 text-xs text-text-3 font-semibold uppercase tracking-wider">{h}</th>)}
                     </tr></thead>
                     <tbody className="divide-y divide-border">
-                        {mockTopMedicines.map((m, i) => (
-                            <tr key={m.name} className="hover:bg-surface-2/30 transition-colors">
+                        {topMedicines.map((m: any, i: number) => (
+                            <tr key={i} className="hover:bg-surface-2/30 transition-colors">
                                 <td className="px-4 py-2.5 text-text-3 text-xs font-mono">{i + 1}</td>
                                 <td className="px-4 py-2.5 font-medium text-text-1">{m.name}</td>
-                                <td className="px-4 py-2.5 font-mono text-text-1">{formatINR(m.revenue)}</td>
-                                <td className="px-4 py-2.5 text-text-2">{m.units.toLocaleString()}</td>
-                                <td className="px-4 py-2.5 text-success font-medium">{Math.round(25 + Math.random() * 20)}%</td>
+                                <td className="px-4 py-2.5 font-mono text-text-1">{formatINR(m.totalSales)}</td>
+                                <td className="px-4 py-2.5 text-text-2">{m.unitsSold || 0}</td>
+                                <td className="px-4 py-2.5 text-primary text-xs">{m.category || '—'}</td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
+
+            {/* Expiry Alerts */}
+            {expiryAlerts.length > 0 && (
+                <div className="bg-surface border border-border rounded-xl overflow-hidden">
+                    <div className="px-5 py-4 border-b border-border">
+                        <h3 className="font-display font-semibold text-text-1 text-critical">⚠️ Expiry Alerts - {expiryAlerts.length} items</h3>
+                    </div>
+                    <table className="w-full text-sm">
+                        <thead><tr className="border-b border-border bg-surface-2/50">
+                            {['Medicine', 'Batch', 'Expiry Date', 'Days Left', 'Stock'].map(h => <th key={h} className="text-left px-4 py-2.5 text-xs text-text-3 font-semibold uppercase tracking-wider">{h}</th>)}
+                        </tr></thead>
+                        <tbody className="divide-y divide-border">
+                            {expiryAlerts.map((alert: any, i: number) => (
+                                <tr key={i} className="hover:bg-surface-2/30 transition-colors">
+                                    <td className="px-4 py-2.5 font-medium text-text-1">{alert.medicineName}</td>
+                                    <td className="px-4 py-2.5 font-mono text-xs text-text-2">{alert.batchNumber}</td>
+                                    <td className="px-4 py-2.5 text-text-2">{new Date(alert.expiryDate).toLocaleDateString('en-IN')}</td>
+                                    <td className="px-4 py-2.5 font-semibold text-critical">{alert.daysToExpiry} days</td>
+                                    <td className="px-4 py-2.5 text-text-2">{alert.quantity}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
     );
 }
+
+

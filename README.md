@@ -1,135 +1,125 @@
-<div align="center">
-  <div style="background-color: #0d1424; padding: 20px; border-radius: 12px; display: inline-block;">
-    <img src="public/vite.svg" alt="PharmIQ++ Logo" width="80" height="80" />
-  </div>
+# what exactlyis PharmIQ++
 
-  <h1 align="center">PharmIQ++</h1>
+PharmIQ++ is a full-stack pharmacy management platform built for Indian retail pharmacy operations. It combines inventory control, point-of-sale workflows, branch-level stock visibility, customer and supplier management, prescription compliance, and analytics in a single web application.
 
-  <p align="center">
-    <strong>Intelligent Pharmacy Management System</strong>
-    <br />
-    Precision control for modern retail pharmacies in India.
-    <br />
-    <a href="#features"><strong>Explore the docs »</strong></a>
-    <br />
-    <br />
-    <a href="https://github.com/yourusername/pharmiq">View Demo</a>
-    ·
-    <a href="https://github.com/yourusername/pharmiq/issues">Report Bug</a>
-    ·
-    <a href="https://github.com/yourusername/pharmiq/issues">Request Feature</a>
-  </p>
-</div>
+## Current Project Status
 
-<br />
+The project is currently in a working integrated state:
 
-<!-- TABLE OF CONTENTS -->
-<details>
-  <summary>Table of Contents</summary>
-  <ol>
-    <li>
-      <a href="#about-the-project">About The Project</a>
-      <ul>
-        <li><a href="#key-features">Key Features</a></li>
-        <li><a href="#built-with">Built With</a></li>
-      </ul>
-    </li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
-      </ul>
-    </li>
-    <li><a href="#acknowledgments">Acknowledgments</a></li>
-  </ol>
-</details>
+- Frontend is running with React + TypeScript.
+- Backend API is running with Node.js, Express, and Prisma.
+- PostgreSQL is connected and seeded with demo data.
+- Containerized local setup is available through Docker Compose.
+- Authentication, medicine listing, and dashboard workflows are operational.
 
----
+## Implemented Modules
 
-## About The Project
+- Authentication and role-based access (tenant-scoped users)
+- Dashboard and analytics views
+- POS transaction flows
+- Medicines and batch inventory management
+- Branch stock and transfer support
+- Supplier and procurement workflows
+- Invoice processing and OCR endpoints
+- Customer and prescription management
+- Compliance and audit-log data model support
 
-**PharmIQ++** is a cloud-native SaaS platform designed from the ground up to handle the rigorous demands of retail pharmacy operations in India. Moving beyond legacy desktop software, PharmIQ++ brings modern UX, intelligent ML-assisted workflows, and unparalleled operational visibility to pharmacy owners.
+## Architecture Overview
 
-Designed for speed, security, and true scalability, PharmIQ++ enables pharmacies to reduce stockouts, ensure strict regulatory compliance, and process point-of-sale transactions in seconds.
+### Frontend
 
-### Key Features
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- Zustand
+- Recharts
 
-* ⚡ **Lightning Fast POS:** Process bills in split-seconds. Features keyboard-first navigation, integrated barcode scanning, and auto-batch mapping (FIFO/FEFO).
-* 🛡️ **Schedule H & Regulatory Compliance:** Automated hard-blocks for prescription-only drugs unless a valid Rx is uploaded. Integrated audit trail logs for regulatory bodies.
-* 🧠 **Intelligent Procurement & OCR:** Upload supplier invoices and seamlessly parse them using OCR to instantly populate inventory. Predictive stock alerts based on historical sales velocity.
-* 📊 **Enterprise-Grade Analytics:** Real-time dashboards displaying gross margins, 90-day sales trends, expiry loss projections, and low-stock alerts.
-* 🌓 **Beautiful, Responsive UI:** Premium dark-mode first design, built with Framer Motion, Tailwind CSS, and Shadcn UI to deliver a consumer-grade experience for enterprise data.
+### Backend
 
----
+- Node.js
+- Express
+- Prisma ORM
+- PostgreSQL
+- JWT authentication
 
-### Built With
+### Deployment Model (Local)
 
-The project leverages a completely modern, type-safe Frontend stack:
+- `pharmez-backend` container (API on port `3000`)
+- `pharmez-postgres` container (Database on port `5432`)
 
-*   **Framework:** [React 18](https://reactjs.org/) + [TypeScript](https://www.typescriptlang.org/)
-*   **Build Tool:** [Vite](https://vitejs.dev/)
-*   **Styling:** [Tailwind CSS](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/)
-*   **State Management (Server):** [TanStack Query (React Query)](https://tanstack.com/query/latest)
-*   **State Management (Client):** [Zustand](https://zustand-demo.pmnd.rs/)
-*   **Routing:** [React Router v6](https://reactrouter.com/)
-*   **Forms & Validation:** [React Hook Form](https://react-hook-form.com/) + [Zod](https://zod.dev/)
-*   **Tables & Data Grids:** [TanStack Table v8](https://tanstack.com/table/latest)
-*   **Charts & Visualizations:** [Recharts](https://recharts.org/)
-*   **Animations:** [Framer Motion](https://www.framer.com/motion/)
-*   **Icons:** [Lucide React](https://lucide.dev/)
+## Repository Structure
 
----
+```text
+PharmEZ/
+  src/                    # Frontend application
+  backend/
+    src/                  # Backend API routes, middleware, services
+    prisma/
+      schema.prisma       # Database schema
+  docker-compose.yml      # Local orchestration for backend + postgres
+```
 
-## Getting Started
+## Database Schema (High Level)
 
-To get a local copy up and running, follow these simple steps.
+The schema in `backend/prisma/schema.prisma` is organized around these domains:
+
+- Tenant and user management
+- Branches and branch stock
+- Medicines and batches
+- Customers and suppliers
+- Invoices and procurement
+- Prescriptions and verification
+- POS transactions and line items
+- Audit logging
+
+This design supports multi-tenant isolation and branch-aware inventory tracking.
+
+## Local Setup
 
 ### Prerequisites
 
-Ensure you have Node.js and npm (or pnpm/yarn) installed on your system.
-* npm
-  ```sh
-  npm install npm@latest -g
-  ```
+- Node.js 18+
+- Docker Desktop
 
-### Installation
+### Option 1: Run Backend and Database with Docker
 
-1. Clone the repo
-   ```sh
-   git clone https://github.com/yourusername/pharmiq.git
-   ```
-2. Navigate to the project directory
-   ```sh
-   cd pharmiq
-   ```
-3. Install NPM packages
-   ```sh
-   npm install
-   ```
-4. Start the development server
-   ```sh
-   npm run dev
-   ```
-5. Open your browser and navigate to `http://localhost:5173`. You will be greeted by the Landing Page.
+```bash
+cd PharmEZ
+docker-compose up -d
+```
 
----
+Backend health check:
 
-## Roadmap
+```bash
+curl http://localhost:3000/health
+```
 
-- [x] High-performance POS interface
-- [x] Intelligent Inventory Management
-- [x] Multi-tenant SaaS architecture setup
-- [ ] Backend API integration (Node.js/PostgreSQL)
-- [ ] Real-time WebSocket notifications
-- [ ] Integration with WhatsApp Business API for e-receipts
+### Option 2: Run Frontend Locally
 
----
+```bash
+cd PharmEZ
+npm install
+npm run dev -- --host
+```
 
-## Acknowledgments
+Frontend URL:
 
-* **Made with ❤️ by TY AIML-B Group 11 - 2026**
-* UI/UX inspired by premium SaaS platforms like Stripe, Linear, and Supabase.
-* Built as part of our Software Engineering Course Project.
+- `http://localhost:5173/PharmIQ/`
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+## Default Demo Credentials
+
+The seed script provisions a demo admin user as following:
+
+- Email: `admin@pharmez.in`
+- Password: `Admin@123`
+
+## Key API Endpoints
+
+- `GET /health`
+- `POST /api/auth/login`
+- `GET /api/medicines` (authenticated)
+- `GET /api/analytics/*` (authenticated)
+- `POST /api/pos/*` (authenticated)
+
+Lessgo!

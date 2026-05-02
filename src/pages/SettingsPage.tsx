@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { mockTenants } from '@/data/mock';
 import { cn } from '@/lib/utils';
 import { useUiStore } from '@/stores/uiStore';
-import { Store, Users, Shield, Receipt, Pill, Bell, Database, Monitor } from 'lucide-react';
+import { Store, Users, Shield, Receipt, Pill, Bell, Database, Monitor, UserCircle } from 'lucide-react';
 import { TableDensity } from '@/types';
 
 const SETTING_TABS = [
+    { id: 'profile', label: 'Profile', icon: UserCircle },
     { id: 'store', label: 'Store Config', icon: Store },
     { id: 'users', label: 'User Management', icon: Users },
     { id: 'roles', label: 'Role Permissions', icon: Shield },
@@ -33,8 +35,26 @@ const MOCK_USERS = [
 ];
 
 export function SettingsPage() {
-    const [activeTab, setActiveTab] = useState('display');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const requestedTab = searchParams.get('tab') || 'display';
+    const isValidTab = SETTING_TABS.some((tab) => tab.id === requestedTab);
+    const [activeTab, setActiveTab] = useState(isValidTab ? requestedTab : 'display');
     const { tableDensity, setDensity, theme, setTheme } = useUiStore();
+
+    useEffect(() => {
+        if (isValidTab && requestedTab !== activeTab) {
+            setActiveTab(requestedTab);
+        }
+        if (!isValidTab && activeTab !== 'display') {
+            setActiveTab('display');
+            setSearchParams({ tab: 'display' });
+        }
+    }, [requestedTab, isValidTab, activeTab, setSearchParams]);
+
+    const changeTab = (tabId: string) => {
+        setActiveTab(tabId);
+        setSearchParams({ tab: tabId });
+    };
 
     return (
         <div className="flex h-[calc(100vh-3.5rem)]">
@@ -46,7 +66,7 @@ export function SettingsPage() {
                     return (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
+                            onClick={() => changeTab(tab.id)}
                             className={cn(
                                 'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors mb-0.5',
                                 activeTab === tab.id ? 'bg-surface-2 text-text-1 font-medium' : 'text-text-2 hover:text-text-1 hover:bg-surface-2/50'
@@ -104,6 +124,29 @@ export function SettingsPage() {
                                     ))}
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'profile' && (
+                    <div className="max-w-lg space-y-6">
+                        <div>
+                            <h2 className="text-xl font-display font-bold text-text-1 mb-1">Profile</h2>
+                            <p className="text-sm text-text-2">Manage your account information</p>
+                        </div>
+                        <div className="bg-surface border border-border rounded-xl p-5 space-y-4">
+                            {[
+                                ['Full Name', 'Ramesh Verma'],
+                                ['Role', 'Admin'],
+                                ['Email', 'admin@pharmez.in'],
+                                ['Branch', 'Pune - Main Branch'],
+                            ].map(([l, v]) => (
+                                <div key={l}>
+                                    <label className="text-xs text-text-3 mb-1 block">{l}</label>
+                                    <input defaultValue={v} className="w-full bg-surface-2 border border-border rounded-lg px-3 py-2 text-sm text-text-1 focus:border-primary outline-none transition-colors" />
+                                </div>
+                            ))}
+                            <button className="w-full py-2.5 bg-primary hover:bg-primary-dim text-white rounded-lg text-sm font-medium transition-colors">Update Profile</button>
                         </div>
                     </div>
                 )}

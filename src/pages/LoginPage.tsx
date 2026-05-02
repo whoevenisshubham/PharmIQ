@@ -3,22 +3,44 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PillIcon, ArrowRight, Lock, Mail, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuthStore } from '../stores/authStore';
 
 export function LoginPage() {
     const navigate = useNavigate();
-    const [isLoading, setIsLoading] = useState(false);
-    const [email, setEmail] = useState('admin@pharmiq.in');
-    const [password, setPassword] = useState('••••••••');
+    const { login, register, isLoading, error } = useAuthStore();
+    const [mode, setMode] = useState<'login' | 'register'>('login');
 
-    const handleLogin = (e: React.FormEvent) => {
+    const [tenantName, setTenantName] = useState('PharmEZ Demo');
+    const [phone, setPhone] = useState('');
+    const [gstNumber, setGstNumber] = useState('');
+    const [email, setEmail] = useState('admin@pharmez.in');
+    const [password, setPassword] = useState('Admin@123');
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
-        // Simulate a network request for the dummy login
-        setTimeout(() => {
-            setIsLoading(false);
-            toast.success('Authentication successful. Welcome back!');
+        try {
+            if (mode === 'login') {
+                await login(email, password);
+                toast.success('Authentication successful. Welcome back!');
+            } else {
+                await register({
+                    tenantName,
+                    email,
+                    password,
+                    phone: phone || undefined,
+                    gstNumber: gstNumber || undefined,
+                });
+                toast.success('Account created successfully. You are now signed in.');
+            }
             navigate('/dashboard');
-        }, 1200);
+        } catch (err: any) {
+            const isNetworkError = !err?.response && (err?.code === 'ERR_NETWORK' || /network|fetch/i.test(String(err?.message || '')));
+            if (isNetworkError) {
+                toast.error('Unable to reach backend. Start backend on http://localhost:3000 and retry.');
+            } else {
+                toast.error(err.response?.data?.error || 'Authentication failed');
+            }
+        }
     };
 
     return (
@@ -106,11 +128,77 @@ export function LoginPage() {
                     </div>
 
                     <div className="mb-8">
-                        <h2 className="text-3xl font-display font-bold text-white mb-2">Welcome back</h2>
-                        <p className="text-text-2 text-sm">Enter your credentials to access the terminal.</p>
+                        <h2 className="text-3xl font-display font-bold text-white mb-2">
+                            {mode === 'login' ? 'Welcome back' : 'Create your workspace'}
+                        </h2>
+                        <p className="text-text-2 text-sm">
+                            {mode === 'login'
+                                ? 'Enter your credentials to access the terminal.'
+                                : 'Register your pharmacy tenant and admin account.'}
+                        </p>
+                        <div className="mt-4 inline-flex rounded-lg border border-[#1f2d45] bg-[#0d1424]/60 p-1">
+                            <button
+                                type="button"
+                                onClick={() => setMode('login')}
+                                className={`px-3 py-1.5 text-sm rounded-md transition ${mode === 'login' ? 'bg-primary text-white' : 'text-text-2 hover:text-text-1'}`}
+                            >
+                                Sign In
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setMode('register')}
+                                className={`px-3 py-1.5 text-sm rounded-md transition ${mode === 'register' ? 'bg-primary text-white' : 'text-text-2 hover:text-text-1'}`}
+                            >
+                                Register
+                            </button>
+                        </div>
                     </div>
 
-                    <form onSubmit={handleLogin} className="space-y-5">
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                            <p className="text-red-400 text-sm">{error}</p>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        {mode === 'register' && (
+                            <>
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-text-2">Pharmacy / Tenant Name</label>
+                                    <input
+                                        type="text"
+                                        value={tenantName}
+                                        onChange={(e) => setTenantName(e.target.value)}
+                                        className="block w-full px-3 py-2.5 border border-[#1f2d45] rounded-xl leading-5 bg-[#0d1424]/50 text-text-1 placeholder-text-3 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all sm:text-sm"
+                                        placeholder="PharmIQ Demo Store"
+                                        required
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-text-2">Phone</label>
+                                        <input
+                                            type="text"
+                                            value={phone}
+                                            onChange={(e) => setPhone(e.target.value)}
+                                            className="block w-full px-3 py-2.5 border border-[#1f2d45] rounded-xl leading-5 bg-[#0d1424]/50 text-text-1 placeholder-text-3 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all sm:text-sm"
+                                            placeholder="Optional"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-text-2">GST Number</label>
+                                        <input
+                                            type="text"
+                                            value={gstNumber}
+                                            onChange={(e) => setGstNumber(e.target.value)}
+                                            className="block w-full px-3 py-2.5 border border-[#1f2d45] rounded-xl leading-5 bg-[#0d1424]/50 text-text-1 placeholder-text-3 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all sm:text-sm"
+                                            placeholder="Optional"
+                                        />
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
                         <div className="space-y-1.5">
                             <label className="text-sm font-medium text-text-2">Work Email</label>
                             <div className="relative">
@@ -158,11 +246,11 @@ export function LoginPage() {
                             {isLoading ? (
                                 <span className="flex items-center gap-2">
                                     <Loader2 className="w-6 h-6 animate-spin" />
-                                    Authenticating...
+                                    {mode === 'login' ? 'Authenticating...' : 'Creating account...'}
                                 </span>
                             ) : (
                                 <span className="flex items-center gap-2">
-                                    Sign In to Workspace
+                                    {mode === 'login' ? 'Sign In to Workspace' : 'Create Workspace'}
                                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                                 </span>
                             )}
